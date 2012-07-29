@@ -18,8 +18,8 @@ class ConsoleRecorder:
         asr.connect('result', self.asr_result)
 
         # Tune to particular language model
-        #asr.set_property('lm', 'models/5k_words.0.lm')
-        #asr.set_property('dict', 'models/5k_words.dic')
+        asr.set_property('lm', 'data/3585.lm')
+        asr.set_property('dict', 'data/3585.dic')
  
         # We need to convince it that we're done configuring it apparently
         asr.set_property('configured', True)

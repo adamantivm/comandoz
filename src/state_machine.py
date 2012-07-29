@@ -39,6 +39,8 @@ class StateMachine:
             asr.set_property('dict', self.current_state.lm.dict_filename )
         asr.set_property('configured', True)
 
+        logging.info("State changed. Active options: %s" % " ; ".join(self.current_state.keywords.keys()))
+
     # This is called from another thread so we need to be quick to process it
     def asr_result(self, asr, text, uttid):
         self.text_decoded = text
@@ -65,10 +67,13 @@ class StateMachine:
 
 class State:
     def __init__(self):
+        logging.info("Instantiating State class: %s" % self.__class__.__name__)
         if not hasattr(self,'lm'):
+            logging.info("We need to create a LanguageModel for this State")
             commands_array = self.keywords.keys()
             self.lm = LanguageModel(self.__class__.__name__,commands_array)
             self.lm.update_all()
+            logging.info("LanguageModel created")
         
     def process(self, text):
         new_state = None

@@ -1,6 +1,7 @@
 import os
 import subprocess
 from subprocess import CalledProcessError
+import mechanize
 
 # TODO: learn and use pythonic practice for finding
 # files in the right locations
@@ -65,40 +66,30 @@ class LanguageModel:
     
     '''Creates all necessary language model files for functioning'''
     def update_all(self,force=False):
-        self.update_dict(force)
-        self.update_lm(force)
-        self.delete_intermediate_files()
-
-    '''Creates or updates the .dic file for this model'''
-    def update_dict(self, force=False):
-        if self.good_and_current_file( self.dict_filename) and not force:
-            return
-
-        dict_array = []
-        for term in self.get_vocabulary():
-            if term.find('S>') != -1:
-                continue
-            try:
-                dict_term = subprocess.check_output(["grep","-i","^%s\s" % term,"%s" % self.main_dict])
-                dict_array.append( dict_term.strip())
-            except CalledProcessError:
-                raise Exception("Term not found in master dictionary: %s" % term)
-
-        self.write_file( self.dict_filename, dict_array)
-        return dict_array
-    
-    def update_lm(self, force=False):
-        if self.good_and_current_file( self.lm_filename) and not force:
+        if self.good_and_current_file( self.dict_filename) and \
+            self.good_and_current_file( self.lm_filename) and \
+            not force:
             return
         
-        self.update_sentences()
-        self.update_vocabulary()
-        
-        os.system("text2idngram -vocab %s -idngram %s < %s" %
-            (self.vocab_filename,self.idngram_filename,self.sentences_filename))
-        os.system("idngram2lm -absolute -context %s -vocab_type 0 -idngram %s -vocab %s -arpa %s" %
-            (self.context_filename, self.idngram_filename,self.vocab_filename,self.lm_filename))
+        br = mechanize.Browser()
+        br.set_handle_robots(False)
+        br.open("http://www.speech.cs.cmu.edu/tools/lmtool-new.html")
+        br.select_form(nr=0)
+        br.form.add_file(open(self.input_filename), 'text/plain', self.input_filename)
+        br.submit()
+        dict_contents = br.follow_link(text_regex=r".*\.dic", nr=0)
+        dict_contents = dict_contents.read()
+        br.back()
+        lm_contents = br.follow_link(text_regex=r".*\.lm", nr=0)
+        lm_contents = lm_contents.read()
 
+        dict_f = open( self.dict_filename, 'w')
+        dict_f.write( dict_contents)
+        dict_f.close()
+        lm_f = open( self.lm_filename, 'w')
+        lm_f.write( lm_contents)
+        lm_f.close()        
+        
     def get_vocabulary(self):
         if not self.good_and_current_file( self.vocab_filename):
             self.update_vocabulary()

@@ -27,13 +27,9 @@ class TestLanguageModel(unittest.TestCase):
     def test_update_sentences(self):
         lm = LanguageModel('playing')
 
-    def test_update_dict(self):
+    def test_update_all(self):
         lm = LanguageModel('playing')
-        lm.update_dict( True)
-
-    def test_update_lm(self):
-        lm = LanguageModel('playing')
-        lm.update_lm( True)
+        lm.update_all( True)
 
 if __name__ == '__main__':
     unittest.main()
