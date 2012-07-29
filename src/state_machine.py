@@ -7,7 +7,7 @@ import gst
 import logging
 import sys
 
-logging.basicConfig(stream=sys.stdout)
+logging.basicConfig(stream=sys.stdout,level=logging.DEBUG)
 
 class StateMachine:
     def __init__(self):
@@ -31,8 +31,10 @@ class StateMachine:
 
         # Modify the language model to the new state
         asr = self.pipeline.get_by_name('asr')
-        asr.set_property('lm', self.current_state.sphinx_lm)
-        asr.set_property('dict', self.current_state.sphinx_dict)
+        if hasattr(self.current_state,'sphinx_lm'):
+            asr.set_property('lm', self.current_state.sphinx_lm)
+        if hasattr(self.current_state,'sphinx_dict'):
+            asr.set_property('dict', self.current_state.sphinx_dict)
         asr.set_property('configured', True)
 
     # This is called from another thread so we need to be quick to process it
@@ -60,18 +62,11 @@ class StateMachine:
                     self.pipeline.set_state(gst.STATE_PLAYING)
 
 class State:
-    sphinx_lm = 'models/2503.lm'
-    sphinx_dict = 'models/2503.dic'
-    
     def process(self, text):
-        print text
         new_state = None
-        orig_text = text
-        if text in self.synonyms:
-            text = self.synonyms[text]
         if text in self.keywords:
             new_state = self.keywords[text]
-        logging.info('Processed text = %s with result = %s' % (orig_text, new_state))
+        logging.info('Processed text = %s with result = %s' % (text, new_state))
         return new_state
 
 class Listening:
@@ -80,26 +75,27 @@ class PlayingMusic:
     pass
 class InitialState(State):
     keywords = {
-        'mary': Listening
+        'MARY': Listening
     }
-    synonyms = {}
 
 class Listening(State):
+    sphinx_lm = 'models/2503.lm'
+    sphinx_dict = 'models/2503.dic'
     keywords = {
-        'cancel': InitialState,
-        'play music': PlayingMusic
-    }
-    synonyms = {
-        'cancel': ('no','go back')
+        'CANCEL': InitialState,
+        'PLAY': PlayingMusic
     }
     timeout = (10, InitialState)
 
 class PlayingMusic(State):
+    sphinx_lm = 'models/2503.lm'
+    sphinx_dict = 'models/2503.dic'
     keywords = {
-        'stop': Listening
+        'STOP': Listening
     }
 
 if __name__ == '__main__':
+    logging.info("Starting")
     s = StateMachine()
     s.run()
 
