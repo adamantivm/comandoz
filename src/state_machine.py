@@ -1,6 +1,7 @@
 import time
 import gobject
 import pygst
+from lm import LanguageModel, ManualLanguageModel
 pygst.require('0.10')
 gobject.threads_init()
 import gst
@@ -12,7 +13,7 @@ logging.basicConfig(stream=sys.stdout,level=logging.DEBUG)
 class StateMachine:
     def __init__(self):
         self.pipeline_init()
-        self.change_state( InitialState)
+        self.change_state( 'InitialState')
 
     '''Create and init the pipeline''' 
     def pipeline_init(self):
@@ -24,17 +25,18 @@ class StateMachine:
         # Connect callbacks to the pocketsphinx component
         asr = self.pipeline.get_by_name('asr')
         asr.connect('result', self.asr_result)
-        
+
     '''Update the pipeline configuration to use this state's configuration'''
-    def change_state(self, new_state_class):
-        self.current_state = new_state_class()
+    def change_state(self, new_state_class_name):
+        clazz = getattr(__import__(__name__), new_state_class_name)
+        self.current_state = clazz()
 
         # Modify the language model to the new state
         asr = self.pipeline.get_by_name('asr')
-        if hasattr(self.current_state,'sphinx_lm'):
-            asr.set_property('lm', self.current_state.sphinx_lm)
-        if hasattr(self.current_state,'sphinx_dict'):
-            asr.set_property('dict', self.current_state.sphinx_dict)
+        if self.current_state.lm.lm_filename is not None:
+            asr.set_property('lm', self.current_state.lm.lm_filename)
+        if self.current_state.lm.dict_filename is not None:
+            asr.set_property('dict', self.current_state.lm.dict_filename )
         asr.set_property('configured', True)
 
     # This is called from another thread so we need to be quick to process it
@@ -49,19 +51,25 @@ class StateMachine:
 
             # There is an utterance waiting to be processed
             if hasattr(self,'text_decoded'):
-                new_state_class = self.current_state.process( self.text_decoded)
+                new_state_class_name = self.current_state.process( self.text_decoded)
                 del self.text_decoded
 
                 # There has been a state change
-                if new_state_class is not None:
+                if new_state_class_name is not None:
                     # Pause the pipeline
                     self.pipeline.set_state(gst.STATE_PAUSED)
                     # Change the state
-                    self.change_state( new_state_class)
+                    self.change_state( new_state_class_name)
                     # Re-start the pipeline
                     self.pipeline.set_state(gst.STATE_PLAYING)
 
 class State:
+    def __init__(self):
+        if not hasattr(self,'lm'):
+            commands_array = self.keywords.keys()
+            self.lm = LanguageModel(self.__class__.__name__,commands_array)
+            self.lm.update_all()
+        
     def process(self, text):
         new_state = None
         if text in self.keywords:
@@ -69,29 +77,24 @@ class State:
         logging.info('Processed text = %s with result = %s' % (text, new_state))
         return new_state
 
-class Listening:
-    pass
-class PlayingMusic:
-    pass
+
+# Actual class model starts here:
 class InitialState(State):
+    lm = ManualLanguageModel('initial')   # Overrides automatic creation of language model
     keywords = {
-        'MARY': Listening
+        'MARY': 'Listening'
     }
 
 class Listening(State):
-    sphinx_lm = 'models/2503.lm'
-    sphinx_dict = 'models/2503.dic'
     keywords = {
-        'CANCEL': InitialState,
-        'PLAY': PlayingMusic
+        'CANCEL': 'InitialState',
+        'PLAY': 'PlayingMusic'
     }
-    timeout = (10, InitialState)
+    timeout = (10, 'InitialState')
 
 class PlayingMusic(State):
-    sphinx_lm = 'models/2503.lm'
-    sphinx_dict = 'models/2503.dic'
     keywords = {
-        'STOP': Listening
+        'STOP': 'Listening'
     }
 
 if __name__ == '__main__':

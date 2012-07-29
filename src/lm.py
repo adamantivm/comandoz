@@ -21,19 +21,36 @@ Files:
 - <name>.sent --> sentence file (starts and ends for <s> </s>)
 '''
 class LanguageModel:
-    def __init__(self, name):
+    def __init__(self, name, input_array=None):
         self.base_dir = os.getenv('CZ_DATA_DIR','data')
         self.main_dict = self.base_dir + os.sep + 'cmu07a.dic'
         self.context_filename = self.base_dir + os.sep + 'default.ccm'
         
+        # These files are mandatory for operation
         if not os.path.exists( self.main_dict):
             raise Exception("Missing base dictionary file: %s" % self.main_dict)
-        
+        if not os.path.exists( self.context_filename):
+            try:
+                self.write_file( self.context_filename, "<s>\n</s>\n")
+            except:
+                raise Exception("Couldn't find nor create context cues file: %s" % self.context_filename)
+
+        # Input data
         self.name = name
         self.input_filename = self.base_dir + os.sep + self.name + ".input"
-        # TODO: Allow providing a list of words as an argument and create the input file for the user
-        if not os.path.exists(self.input_filename) or os.path.getsize(self.input_filename) == 0:
-            raise Exception("Missing input file [%s]" % self.input_filename)
+        self.input_commands = self.get_input_commands()
+        
+        # If an array of commands is provided as input check, use that one unless
+        # it's the same as the one on disk - in that case don't save to avoid
+        # altering the timestamps
+        if input_array is not None and \
+            (self.input_commands is None or input_array.sort() != self.input_commands.sort()):
+                self.input_commands = input_array
+                self.write_file( self.input_filename, self.input_commands)
+
+        # Can't work without input!
+        if self.input_commands is None:
+            raise Exception("Missing input file (%s) or input command array" % self.input_filename)
         
         # Output files
         self.lm_filename = self.base_dir + os.sep + self.name + ".lm"
@@ -96,7 +113,7 @@ class LanguageModel:
     def update_sentences(self, force=False):
         if self.good_and_current_file( self.sentences_filename) and not force:
             return
-        sentences = map(lambda x: "<s> %s </s>" % x.upper(), self.get_input_commands())
+        sentences = map(lambda x: "<s> %s </s>" % x.upper(), self.input_commands)
         self.write_file( self.sentences_filename, sentences)
         return sentences
     
@@ -119,11 +136,8 @@ class LanguageModel:
         return array
 
     def get_input_commands(self):
-        if not hasattr( self, 'commands_array') or self.commands_array_ts < os.path.getmtime( self.input_filename):
-            self.commands_array_ts = os.path.getmtime( self.input_filename)
-            self.input_f = open( self.input_filename, 'r')
-            self.commands_array = map(lambda x: x[:-1], self.input_f.readlines())
-        return self.commands_array
+        if os.path.exists(self.input_filename) and os.path.getsize(self.input_filename) != 0:
+            return self.read_file( self.input_filename)
 
     '''Checks whether a given file exists, it's not empty and it's newer than the
         input file'''
@@ -146,3 +160,14 @@ class LanguageModel:
         if not self.good_and_current_file( self.dict_filename):
             return False
         return True
+
+'''A LM file that doesn't do any of the LM creation magic. Used simply as
+   a data object to keep the file names of the lm and dict files, or provide defaults'''
+# TODO: Implement something useful here
+class ManualLanguageModel(LanguageModel):
+    def __init__(self, name):
+        self.name = name
+        self.lm_filename = None
+        self.dict_filename = None
+
+        
