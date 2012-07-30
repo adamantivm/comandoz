@@ -10,8 +10,9 @@ import mechanize
 LanguageModel class.
 Used to abstract access to model files and creation of them
 It is instantiated by creating an instance with a given file name
-It works with files created in the 'data' directory (variable base_dir)
-As input, it expects a <name>.vocab file as input to exist in the data directory
+It works with files in the 'data' directory (variable base_dir) and
+produces model files in the 'model' directory (variable work_dir)
+As input, it expects a <name>.input file as input to exist in the data directory
 It will produce and use a <name>.lm and <name>.dic file also in the same directory
 
 Files:
@@ -24,6 +25,8 @@ Files:
 class LanguageModel:
     def __init__(self, name, input_array=None):
         self.base_dir = os.getenv('CZ_DATA_DIR','data')
+        self.work_dir = os.getenv('CZ_WORK_DIR','model')
+
         self.main_dict = self.base_dir + os.sep + 'cmu07a.dic'
         self.context_filename = self.base_dir + os.sep + 'default.ccm'
         
@@ -36,9 +39,16 @@ class LanguageModel:
             except:
                 raise Exception("Couldn't find nor create context cues file: %s" % self.context_filename)
 
+        # Work dir
+        if not os.path.exists(self.work_dir):
+            try:
+                os.mkdir( self.work_dir)
+            except:
+                raise Exception("Couldn't create or use work directory: %s" % self.work_dir)
+
         # Input data
         self.name = name
-        self.input_filename = self.base_dir + os.sep + self.name + ".input"
+        self.input_filename = self.work_dir + os.sep + self.name + ".input"
         self.input_commands = self.get_input_commands()
         
         # If an array of commands is provided as input check, use that one unless
@@ -54,16 +64,9 @@ class LanguageModel:
             raise Exception("Missing input file (%s) or input command array" % self.input_filename)
         
         # Output files
-        self.lm_filename = self.base_dir + os.sep + self.name + ".lm"
-        self.dict_filename = self.base_dir + os.sep + self.name + ".dic"
+        self.lm_filename = self.work_dir + os.sep + self.name + ".lm"
+        self.dict_filename = self.work_dir + os.sep + self.name + ".dic"
         
-        # Optional files
-        self.sentences_filename = self.base_dir + os.sep + self.name + ".sent"
-
-        # Intermediate files
-        self.vocab_filename = self.base_dir + os.sep + self.name + ".vocab"
-        self.idngram_filename = self.base_dir + os.sep + self.name + ".idngram"
-    
     '''Creates all necessary language model files for functioning'''
     def update_all(self,force=False):
         if self.good_and_current_file( self.dict_filename) and \
@@ -88,31 +91,12 @@ class LanguageModel:
         dict_f.close()
         lm_f = open( self.lm_filename, 'w')
         lm_f.write( lm_contents)
-        lm_f.close()        
+        lm_f.close()
         
-    def get_vocabulary(self):
-        if not self.good_and_current_file( self.vocab_filename):
-            self.update_vocabulary()
-        return self.read_file( self.vocab_filename)
-
-    def update_vocabulary(self, force=False):
-        if self.good_and_current_file( self.vocab_filename) and not force:
-            return
-        self.update_sentences()
-        os.system("text2wfreq < %s | wfreq2vocab | grep -v '##' > %s" % (self.sentences_filename,self.vocab_filename))
-
-    def update_sentences(self, force=False):
-        if self.good_and_current_file( self.sentences_filename) and not force:
-            return
-        sentences = map(lambda x: "<s> %s </s>" % x.upper(), self.input_commands)
-        self.write_file( self.sentences_filename, sentences)
-        return sentences
-    
-    def delete_intermediate_files(self):
-        if os.path.exists( self.idngram_filename):
-            os.unlink( self.idngram_filename)
-        if os.path.exists( self.vocab_filename):
-            os.unlink( self.vocab_filename)
+    '''Deletes .lm and .dic files from directory'''
+    def reset_files(self):
+        os.unlink( self.dict_filename)
+        os.unlink( self.lm_filename)
 
     def write_file(self, filename, array):
         f = open( filename, 'w')

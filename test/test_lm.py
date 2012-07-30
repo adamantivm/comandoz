@@ -6,7 +6,8 @@ class TestLanguageModel(unittest.TestCase):
 
     def setUp(self):
         os.environ['CZ_DATA_DIR'] = 'test' + os.sep + 'data'
-   
+        os.environ['CZ_WORK_DIR'] = 'test' + os.sep + 'work'
+        
     def test_inexistent(self):
         self.assertRaises( Exception, LanguageModel, ('test-no-exist'))
     
@@ -30,6 +31,7 @@ class TestLanguageModel(unittest.TestCase):
     def test_update_all(self):
         lm = LanguageModel('playing')
         lm.update_all( True)
+        lm.reset_files()
 
 if __name__ == '__main__':
     unittest.main()
