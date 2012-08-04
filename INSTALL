@@ -1,0 +1,3 @@
+git clone https://github.com/adamantivm/comandoz.git
+
+sudo apt-get install python-mechanize gstreamer0.10-gconf gstreamer0.10-pocketsphinx
