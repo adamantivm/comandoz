@@ -2,11 +2,13 @@ import time
 import gobject
 import pygst
 from lm import LanguageModel, ManualLanguageModel
+import types
 pygst.require('0.10')
 gobject.threads_init()
 import gst
 import logging
 import sys
+import freevo_client as rc
 
 logging.basicConfig(stream=sys.stdout,level=logging.DEBUG)
 
@@ -53,17 +55,24 @@ class StateMachine:
 
             # There is an utterance waiting to be processed
             if hasattr(self,'text_decoded'):
-                new_state_class_name = self.current_state.process( self.text_decoded)
+                state_change = self.current_state.process( self.text_decoded)
                 del self.text_decoded
 
-                # There has been a state change
-                if new_state_class_name is not None:
-                    # Pause the pipeline
-                    self.pipeline.set_state(gst.STATE_PAUSED)
-                    # Change the state
-                    self.change_state( new_state_class_name)
-                    # Re-start the pipeline
-                    self.pipeline.set_state(gst.STATE_PLAYING)
+                for state_transition_action in state_change:
+                    logging.debug("Trying with %s" % type(state_transition_action))
+                    # Execute transition function 
+                    if type(state_transition_action) == types.FunctionType:
+                        logging.debug("%s is a function" % state_transition_action)
+                        state_transition_action()
+                    # There has been a state change
+                    else:
+                        logging.debug("%s is a state class name" % state_transition_action)
+                        # Pause the pipeline
+                        self.pipeline.set_state(gst.STATE_PAUSED)
+                        # Change the state
+                        self.change_state( state_transition_action)
+                        # Re-start the pipeline
+                        self.pipeline.set_state(gst.STATE_PLAYING)
 
 class State:
     def __init__(self):
@@ -76,12 +85,13 @@ class State:
             logging.info("LanguageModel created")
         
     def process(self, text):
-        new_state = None
+        state_change = []
         if text in self.keywords:
-            new_state = self.keywords[text]
-        logging.info('Processed text = %s with result = %s' % (text, new_state))
-        return new_state
-
+            state_change = self.keywords[text]
+            if type(state_change) not in [list,tuple]:
+                state_change = [ state_change ]
+        logging.info('Processed text = %s with result = %s' % (text, state_change))
+        return state_change
 
 # Actual class model starts here:
 class InitialState(State):
@@ -93,13 +103,13 @@ class InitialState(State):
 class Listening(State):
     keywords = {
         'CANCEL': 'InitialState',
-        'PLAY': 'PlayingMusic'
+        'PLAY': (lambda: rc.play_radio_paradise(), 'PlayingMusic')
     }
     timeout = (10, 'InitialState')
 
 class PlayingMusic(State):
     keywords = {
-        'STOP': 'Listening'
+        'STOP': (lambda: rc.stop_playing(), 'Listening')
     }
 
 if __name__ == '__main__':
