@@ -1,3 +1,11 @@
 git clone https://github.com/adamantivm/comandoz.git
 
 sudo apt-get install python-mechanize gstreamer0.10-gconf gstreamer0.10-pocketsphinx
+
+configure gconf / gstreamer to work with desired microphone
+
+enable Freevo remote control via network TCP
+
+apply Freevo patch to enable reading of context information
+
+configure comandoz with correct hostname

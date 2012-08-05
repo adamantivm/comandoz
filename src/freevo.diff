@@ -1,0 +1,17 @@
+diff --git a/rc.py b/rc.py
+index 596bb54..99f76eb 100644
+--- a/rc.py
++++ b/rc.py
+@@ -449,6 +449,11 @@ class TCPNetwork:
+                 buffer = conn.recv(self.MAX_MESSAGE_SIZE)
+                 if len(buffer) == 0:
+                     throwout.append(self.connections.index(conn))
++                # Magic command to get current context
++                elif buffer == 'xyzzy':
++                    _debug_('Context requested. Returning = [%s]' % rc.context)
++                    conn.send( rc.context)
++                    conn.close()
+                 else:
+                     return buffer.strip()
+             except self.socket.error, oErr:
+
