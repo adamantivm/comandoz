@@ -66,7 +66,7 @@ class StateMachine:
     # Main loop
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
-        tics = 0
+        tics = 9
         context = 'menu'
         while True:
             time.sleep(1)
@@ -136,8 +136,8 @@ class State:
 # Actual class model starts here:
 class Base(State):
     keywords = {
-        'LOUDER': 'Base',
-        'QUIETER': 'Base'
+        'VOLUME UP': lambda: rc.volume_up(),
+        'VOLUME DOWN': lambda: rc.volume_down()
     }
     context = {
         'audio': 'PlayingMedia',
@@ -155,7 +155,8 @@ class SelectMedia(Base):
     }
 class PlayingMedia(Base):
     keywords = {
-        'STOP': (lambda: rc.stop_playing(), 'Idle')
+        'STOP': (lambda: rc.stop_playing(), 'Idle'),
+        'PAUSE': lambda: rc.pause()
     }
     context = {
         'menu': 'Idle'
@@ -168,36 +169,30 @@ for state in [Base,Idle,SelectMedia,PlayingMedia]:
 all_state_lm = LanguageModel('all_state_lm', keywords)
 all_state_lm.update_all()
 Base.lm = all_state_lm
-
    
 #########################################
 # Old states - OBSOLETE
 #########################################
     
-class InitialState(State):
-    lm = ManualLanguageModel('initial')   # Overrides automatic creation of language model
-    keywords = {
-        'MARY': 'Listening'
-    }
-
-class Listening(State):
-    keywords = {
-        'CANCEL': 'InitialState',
-        'PLAY': (lambda: rc.play_radio_paradise(), 'PlayingMusic')
-    }
-    timeout = (10, 'InitialState')
-
-class PlayingMusic(State):
-    keywords = {
-        'STOP': (lambda: rc.stop_playing(), 'Listening')
-    }
+#class InitialState(State):
+#    lm = ManualLanguageModel('initial')   # Overrides automatic creation of language model
+#    keywords = {
+#        'MARY': 'Listening'
+#    }
+#
+#class Listening(State):
+#    keywords = {
+#        'CANCEL': 'InitialState',
+#        'PLAY': (lambda: rc.play_radio_paradise(), 'PlayingMusic')
+#    }
+#    timeout = (10, 'InitialState')
+#
+#class PlayingMusic(State):
+#    keywords = {
+#        'STOP': (lambda: rc.stop_playing(), 'Listening')
+#    }
     
 if __name__ == '__main__':
     logging.info("Starting")
     s = StateMachine()
     s.run()
-
-'''
-Initial:
-- (Mary, 'yes?'
-'''

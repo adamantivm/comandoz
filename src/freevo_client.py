@@ -26,21 +26,31 @@ def read_context():
     sock.close()
     return ret
 
-def navigate_menu( path_array):
+def send_many( path_array):
+    '''Send many commands in a row, allowing a small wait in between
+       Particularly appropriate for navigating menus'''
     for element in path_array:
         send_command( element)
         time.sleep( MENU_DELAY)
-        
-        
+
+def volume_up():
+    send_many(["VOL+"]*5)
+
+def volume_down():
+    send_many(["VOL-"]*5)
+
 def stop_playing():
     send_command("STOP")
 
+def pause():
+    send_command("PAUSE")
+
 def play_radio_paradise():
-    navigate_menu([
+    send_many([
         "MUSIC",
         "DOWN", "DOWN", "SELECT",
         "DOWN", "DOWN", "DOWN", "SELECT"
     ])
 
 if __name__ == '__main__':
-    print read_context()
+    print volume_down()

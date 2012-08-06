@@ -2,6 +2,7 @@ import os
 import subprocess
 from subprocess import CalledProcessError
 import mechanize
+import logging
 
 # TODO: learn and use pythonic practice for finding
 # files in the right locations
@@ -51,11 +52,16 @@ class LanguageModel:
         self.input_filename = self.work_dir + os.sep + self.name + ".input"
         self.input_commands = self.get_input_commands()
         
+        if self.input_commands is not None:
+            self.input_commands.sort()
+        if input_array is not None:
+            input_array.sort()
+        
         # If an array of commands is provided as input check, use that one unless
         # it's the same as the one on disk - in that case don't save to avoid
         # altering the timestamps
         if input_array is not None and \
-            (self.input_commands is None or input_array.sort() != self.input_commands.sort()):
+            (self.input_commands is None or input_array != self.input_commands):
                 self.input_commands = input_array
                 self.write_file( self.input_filename, self.input_commands)
 
@@ -73,6 +79,8 @@ class LanguageModel:
             self.good_and_current_file( self.lm_filename) and \
             not force:
             return
+        
+        logging.info("Creating new Language Model using Web tool - please wait")
         
         br = mechanize.Browser()
         br.set_handle_robots(False)
