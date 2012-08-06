@@ -34,8 +34,9 @@ class StateMachine:
         old_state = self.current_state
         clazz = getattr(__import__(__name__), new_state_class_name)
         self.current_state = clazz()
-        
+
         logging.info("State changed. New state = [%s]" % self.current_state)
+        logging.info("Active options now: [%s]" % " ; ".join(self.current_state.keywords.keys()))
 
         if old_state is None or old_state.lm != self.current_state.lm:
             if restart_pipeline:
@@ -50,7 +51,7 @@ class StateMachine:
                 asr.set_property('dict', self.current_state.lm.dict_filename )
             asr.set_property('configured', True)
     
-            logging.info("Active options now: %s" % " ; ".join(self.current_state.keywords.keys()))
+            logging.info("Language Model supports keywords: [%s]" % " ; ".join(self.current_state.lm.input_commands))
     
             if restart_pipeline:
                 # Re-start the pipeline
