@@ -102,17 +102,28 @@ class StateMachine:
 
 
 class State:
+    keywords = {}
     def __init__(self):
         logging.info("Instantiating State class: %s" % self.__class__.__name__)
-        #self.lm = all_state_lm
+        
+        # Add keywords from superclasses
+        self.keywords = State.fold_keywords( self.__class__, self.keywords)
+
+        # If the State doesn't have a LanguageModel set, then
+        # Automatically create LanguageModel specific to the keywords of this State
         if not hasattr(self,'lm'):
             logging.info("We need to create a LanguageModel for this State")
             commands_array = self.keywords.keys()
             self.lm = LanguageModel(self.__class__.__name__,commands_array)
             self.lm.update_all()
             logging.info("LanguageModel created")
+    
+    @staticmethod
+    def fold_keywords(clazz, keywords):
+        for base in clazz.__bases__:
+            keywords.update( State.fold_keywords(base, base.keywords))
+        return keywords
 
-        
     def process(self, text):
         state_change = []
         if text in self.keywords:
@@ -157,7 +168,8 @@ for state in [Base,Idle,SelectMedia,PlayingMedia]:
 all_state_lm = LanguageModel('all_state_lm', keywords)
 all_state_lm.update_all()
 Base.lm = all_state_lm
-    
+
+   
 #########################################
 # Old states - OBSOLETE
 #########################################
